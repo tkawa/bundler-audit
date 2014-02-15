@@ -31,14 +31,8 @@ module Bundler
       # Git URL of the ruby-advisory-db
       URL = 'https://github.com/rubysec/ruby-advisory-db.git'
 
-      # Default path to the ruby-advisory-db
-      VENDORED_PATH =  File.expand_path(File.join(File.dirname(__FILE__),'..','..','..','data','ruby-advisory-db'))
-
-      # Timestamp for when the database was last updated
-      VENDORED_TIMESTAMP = Time.parse(File.read("#{VENDORED_PATH}.ts")).utc
-
       # Path to the user's copy of the ruby-advisory-db
-      USER_PATH = File.expand_path(File.join(ENV['HOME'],'.local','share','ruby-advisory-db'))
+      PATH = File.expand_path(File.join(ENV['HOME'],'.local','share','ruby-advisory-db'))
 
       # The path to the advisory database
       attr_reader :path
@@ -64,23 +58,42 @@ module Bundler
       # The default path for the database.
       #
       # @return [String]
-      #   The path to the database directory.
+      #   The path to the database directory. Defaults to {PATH}.
       #
       def self.path
-        if File.directory?(USER_PATH)
-          t1 = Dir.chdir(USER_PATH) { Time.parse(`git log --pretty="%cd" -1`) }
-          t2 = VENDORED_TIMESTAMP
+        @@path ||= PATH
+      end
 
-          if t1 >= t2 then USER_PATH
-          else             VENDORED_PATH
-          end
+      #
+      # Sets the default path for the database.
+      #
+      # @return [String]
+      #   The new default path for the database.
+      #
+      def self.path=(new_path)
+        @@path = new_path
+      end
+
+      #
+      # Updates the user's ruby-advisory-db.
+      #
+      # @return [Boolean]
+      #   Specifies whether the update was successful.
+      #
+      # @see #update!
+      #
+      # @since 0.3.0
+      #
+      def self.update!
+        if File.directory?(path)
+          new(path).update!
         else
-          VENDORED_PATH
+          system 'git', 'clone', URL, path
         end
       end
 
       #
-      # Updates the ruby-advisory-db.
+      # Updates the database.
       #
       # @return [Boolean]
       #   Specifies whether the update was successful.
@@ -88,15 +101,11 @@ module Bundler
       # @note
       #   Requires network access.
       #
-      # @since 0.3.0
+      # @see 0.4.0
       #
-      def self.update!
-        if File.directory?(USER_PATH)
-          Dir.chdir(USER_PATH) do
-            system 'git', 'pull', 'origin', 'master'
-          end
-        else
-          system 'git', 'clone', URL, USER_PATH
+      def update!
+        Dir.chdir(@path) do
+          system 'git', 'pull', 'origin', 'master'
         end
       end
 
