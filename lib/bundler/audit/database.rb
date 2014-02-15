@@ -88,7 +88,7 @@ module Bundler
         if File.directory?(path)
           new(path).update!
         else
-          system 'git', 'clone', URL, path
+          system 'git', 'clone', '--depth', '1', URL, path
         end
       end
 
