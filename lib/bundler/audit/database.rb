@@ -88,7 +88,7 @@ module Bundler
         if File.directory?(path)
           new(path).update!
         else
-          system 'git', 'clone', '--depth', '1', URL, path
+          system 'git', 'clone', URL, path
         end
       end
 
@@ -107,6 +107,18 @@ module Bundler
         Dir.chdir(@path) do
           system 'git', 'pull', 'origin', 'master'
         end
+      end
+
+      #
+      # Determines when the database was last updated.
+      #
+      # @return [Time]
+      #   The time of the last update.
+      #
+      # @since 0.4.0
+      #
+      def last_updated
+        Dir.chdir(@path) { Time.parse(`git log -1 --format=%ad`) }
       end
 
       #
