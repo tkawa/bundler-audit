@@ -2,11 +2,12 @@ require 'spec_helper'
 require 'bundler/audit/database'
 require 'bundler/audit/advisory'
 
-describe Bundler::Audit::Advisory do
-  let(:root) { Bundler::Audit::Database::VENDORED_PATH }
+describe Advisory do
+  let(:root) { Database.path }
   let(:gem)  { 'actionpack' }
   let(:id)   { 'OSVDB-84243' }
   let(:path) { File.join(root,'gems',gem,"#{id}.yml") }
+
   let(:an_unaffected_version) do
     Bundler::Audit::Advisory.load(path).unaffected_versions.map { |version_rule|
       # For all the rules, get the individual constraints out and see if we
