@@ -75,6 +75,18 @@ module Bundler
       end
 
       #
+      # Downloads the database.
+      #
+      # @return [Boolean]
+      #   Specifies whether the download was successful.
+      #
+      # @since 0.4.0
+      #
+      def self.download!
+        system 'git', 'clone', URL, path
+      end
+
+      #
       # Updates the user's ruby-advisory-db.
       #
       # @return [Boolean]
@@ -88,7 +100,7 @@ module Bundler
         if File.directory?(path)
           new(path).update!
         else
-          system 'git', 'clone', URL, path
+          download!
         end
       end
 
