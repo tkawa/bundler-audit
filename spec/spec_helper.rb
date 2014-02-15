@@ -1,4 +1,6 @@
 require 'rspec'
+require 'tmpdir'
+
 require 'bundler/audit/version'
 
 module Helpers
@@ -13,48 +15,14 @@ module Helpers
   def decolorize(string)
     string.gsub(/\e\[\d+m/, "")
   end
-
-  def mocked_user_path
-    File.expand_path('../../tmp/data', __FILE__)
-  end
-
-  def expect_update_to_clone_repo!
-    Bundler::Audit::Database.
-      should_receive(:system).
-      with('git', 'clone', Bundler::Audit::Database::VENDORED_PATH, mocked_user_path).
-      and_call_original
-  end
-
-  def expect_update_to_update_repo!
-    Bundler::Audit::Database.
-      should_receive(:system).
-      with('git', 'pull', 'origin', 'master').
-      and_call_original
-  end
-
-  def fake_a_commit_in_the_user_repo
-    Dir.chdir(mocked_user_path) do
-      system 'git', 'commit', '--allow-empty', '-m', 'Dummy commit.'
-    end
-  end
-
-  def roll_user_repo_back(num_commits)
-    Dir.chdir(mocked_user_path) do
-      system 'git', 'checkout', "HEAD~#{num_commits}"
-      system 'git', 'branch', '-f', 'master', 'HEAD'
-      system 'git', 'checkout', 'master'
-    end
-  end
 end
 
 include Bundler::Audit
 
 RSpec.configure do |config|
-  include Helpers
+  config.include Helpers
 
-  config.before(:each) do
-    stub_const("Bundler::Audit::Database::URL", Bundler::Audit::Database::VENDORED_PATH)
-    stub_const("Bundler::Audit::Database::USER_PATH", mocked_user_path)
-    FileUtils.rm_rf mocked_user_path if(File.exist?(mocked_user_path))
+  config.before(:suite) do
+    Database.path = Dir.mktmpdir('ruby-advisory-db')
   end
 end

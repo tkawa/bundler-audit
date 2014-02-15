@@ -4,46 +4,37 @@ require 'tmpdir'
 require 'rake/file_list'
 
 describe Bundler::Audit::Database do
-  let(:vendored_advisories) do
-    Rake::FileList[File.join(Bundler::Audit::Database::VENDORED_PATH, '**/*.yml')].sort
-  end
-
-  describe "path" do
-    subject { described_class.path }
-
-    it "it should be a directory" do
-      File.directory?(subject).should be_true
-    end
-
-    it "should prefer the user repo, iff it's as up to date, or more up to date than the vendored one" do
-      Bundler::Audit::Database.update!
-
-      # As up to date...
-      expect(Bundler::Audit::Database.path).to eq mocked_user_path
-
-      # More up to date...
-      fake_a_commit_in_the_user_repo
-      expect(Bundler::Audit::Database.path).to eq mocked_user_path
-
-      roll_user_repo_back(2)
-      expect(Bundler::Audit::Database.path).to eq Bundler::Audit::Database::VENDORED_PATH
-    end
-  end
-
   describe "update!" do
-    it "should create the USER_PATH path as needed" do
-      Bundler::Audit::Database.update!
-      expect(File.directory?(mocked_user_path)).to be true
+    context "when PATH does not exist yet" do
+      before do
+        FileUtils.rm_rf(described_class.path)
+      end
+
+      it "should create the path as needed" do
+        described_class.update!
+
+        expect(File.directory?(described_class.path)).to be_true
+      end
     end
 
-    it "should create the repo, then update it given multple successive calls." do
-      expect_update_to_clone_repo!
-      Bundler::Audit::Database.update!
-      expect(File.directory?(mocked_user_path)).to be true
+    context "when PATH does exist" do
+      before(:all) do
+        @t1 = Dir.chdir(described_class.path) do
+          system 'git', 'reset', '--hard', 'HEAD^1'
+          
+          Time.parse(`git log -1 --format=%ad`)
+        end
 
-      expect_update_to_update_repo!
-      Bundler::Audit::Database.update!
-      expect(File.directory?(mocked_user_path)).to be true
+        described_class.update!
+
+        @t2 = Dir.chdir(described_class.path) do
+          Time.parse(`git log -1 --format=%ad`)
+        end
+      end
+
+      it "should update the git repository" do
+        expect(@t2).to be > @t1
+      end
     end
   end
 
@@ -51,8 +42,8 @@ describe Bundler::Audit::Database do
     context "when given no arguments" do
       subject { described_class.new }
 
-      it "should default path to path" do
-        subject.path.should == described_class.path
+      it "should set path to the default path" do
+        expect(subject.path).to be == described_class.path
       end
     end
 
@@ -72,6 +63,36 @@ describe Bundler::Audit::Database do
           described_class.new('/foo/bar/baz')
         }.should raise_error(ArgumentError)
       end
+    end
+  end
+
+  describe "#update!" do
+    before do
+      @t1 = Dir.chdir(subject.path) do
+        system 'git', 'reset', '--hard', 'HEAD^1'
+
+        Time.parse(`git log -1 --format=%ad`)
+      end
+
+      described_class.update!
+
+      @t2 = Dir.chdir(subject.path) do
+        Time.parse(`git log -1 --format=%ad`)
+      end
+    end
+
+    it "should update the git repository" do
+      expect(@t2).to be > @t1
+    end
+  end
+
+  describe "#last_updated" do
+    let(:timestamp) do
+      Dir.chdir(subject.path) { Time.parse(`git log -1 --format=%ad`) }
+    end
+
+    it "should return the time of the last update" do
+      expect(subject.last_updated).to be == timestamp
     end
   end
 
@@ -106,17 +127,16 @@ describe Bundler::Audit::Database do
   end
 
   describe "#size" do
-    it { expect(subject.size).to eq vendored_advisories.count }
+    it "should return > 0" do
+      expect(subject.size).to be > 0
+    end
   end
 
   describe "#advisories" do
-    it "should return a list of all advisories." do
-      actual_advisories = Bundler::Audit::Database.new.
-        advisories.
-        map(&:path).
-        sort
+    let(:glob) { File.join(subject.path,'gems','*','*.yml') }
 
-      expect(actual_advisories).to eq vendored_advisories
+    it "should return a list of all advisories" do
+      expect(subject.advisories.map(&:path)).to eq Dir[glob]
     end
   end
 
@@ -128,7 +148,7 @@ describe Bundler::Audit::Database do
 
   describe "#inspect" do
     it "should produce a Ruby-ish instance descriptor" do
-      expect(Bundler::Audit::Database.new.inspect).to eq("#<Bundler::Audit::Database:#{Bundler::Audit::Database::VENDORED_PATH}>")
+      expect(subject.inspect).to eq("#<Bundler::Audit::Database:#{subject.path}>")
     end
   end
 end
