@@ -37,6 +37,9 @@ module Bundler
         scanner    = Scanner.new
         vulnerable = false
 
+        # attempt update the database before doing a scan
+        scanner.database.update!
+
         scanner.scan(:ignore => options.ignore) do |result|
           vulnerable = true
 
