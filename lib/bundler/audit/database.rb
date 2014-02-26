@@ -82,7 +82,7 @@ module Bundler
       #
       # @since 0.4.0
       #
-      def self.download!
+      def self.install!
         system 'git', 'clone', URL, path
       end
 
