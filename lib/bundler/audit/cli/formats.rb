@@ -73,3 +73,4 @@ module Bundler
 end
 
 require 'bundler/audit/cli/formats/text'
+require 'bundler/audit/cli/formats/json'
